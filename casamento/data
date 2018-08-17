@@ -1,0 +1,13 @@
+2
+5
+v w x y z A B C D E
+v:BADEC
+w:DBACE
+x:BECDA
+y:ADCBE
+z:BDAEC
+A:zvwyx
+B:xwyvz
+C:wxyzv
+D:vzyxw
+E:ywzxv

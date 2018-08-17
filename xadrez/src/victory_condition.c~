@@ -1,0 +1,376 @@
+	#include "motion.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <ctype.h>
+
+//Enum que irá indicar a posição de cada peça na struct
+enum{
+
+	PAWN,
+	KNIGHT,
+	BISHOP,
+	ROOK,
+	QUEEN,
+	KING
+};
+
+//Leitura do código FEN
+char *read_name(){
+
+	char *name = NULL;
+	size_t tam;
+	
+	//Armazenado a linha
+	getline(&name,&tam,stdin);
+	
+	//Eliminando o \n
+	tam = strlen(name);
+	name[tam-1] = '\0';
+	
+	return name;
+}
+
+/*
+Impressão da FEN
+Parâmetros: XADREZ *
+Retorno: nenhum
+*/
+void print_fen(XADREZ *xadrez){
+
+	int i,j;
+	int counter = 0;
+
+	//Impressão do tabuleiro
+	for(i=0;i<RANKS;i++){
+		for(j=0;j<FILES;j++){
+			if(xadrez->board[i][j].piece == empty){
+				counter++;
+			}
+			else{
+				if(counter != 0){
+					printf("%d",counter);
+					counter = 0;	
+				}
+				printf("%c",xadrez->board[i][j].piece);
+			}
+		}
+		if(counter != 0){
+			printf("%d",counter);
+			counter = 0;
+		}
+		if(i!= RANKS-1)printf("/");
+	}
+
+	//Impressão do turno
+	printf(" %c ",xadrez->turn);
+
+	counter = 0;
+	//Impressão do roque caso exista
+	if(xadrez->roque->roqueWhite[0] != '-'){
+		printf("%c",xadrez->roque->roqueWhite[0]);
+	}
+	else{
+		counter++;
+	}
+	if(xadrez->roque->roqueWhite[1] != '-'){
+		printf("%c",xadrez->roque->roqueWhite[1]);
+	}
+	else{
+		counter++;
+	}
+	if(xadrez->roque->roqueBlack[0] != '-'){
+		printf("%c",xadrez->roque->roqueBlack[0]);
+	}
+	else{
+		counter++;
+	}
+	if(xadrez->roque->roqueBlack[1] != '-'){
+		printf("%c",xadrez->roque->roqueBlack[1]);
+	}
+	else{
+		counter++;
+	}
+	if(counter == 4){
+		printf("-");
+	}
+
+	//Impressão do en passant
+	if(xadrez->en_passant->rank != -1 && xadrez->en_passant->file != -1){
+		printf(" %c",xadrez->en_passant->file+97);
+		printf("%d ",RANKS-xadrez->en_passant->rank);
+	}
+	else{
+		printf(" - ");
+	}
+
+	//Impressão do meio turno
+	printf("%d ",xadrez->middle_turn);
+
+	//Impressão do turno
+	printf("%d\n",xadrez->num_turn);
+}
+
+/*
+Checando se as coordenadas passadas são válidas
+Parâmetros: 
+Retorno: int
+*/
+void checks_position(XADREZ *xadrez, INFO_MOTION *info_motion, int posActualCol, int posActualLin, int posCol, int posLin, char promotion, int *counter){
+
+	int i,j,k;
+	int amountPiece, amountMotion;
+	int valid = NO, piece = -1,catch_piece = -1;
+
+	//Percorrendo todas as peças
+	for(i=0;i<AMOUNT_PIECE;i++){
+		//Percorrendo as peças do mesmo tipo
+		amountPiece = info_motion[i].amount_piece;
+		j = 0;
+		while(amountPiece-- > 0){
+			if(info_motion[i].coor[j].actual_lin == posActualLin && info_motion[i].coor[j].actual_col == posActualCol){
+				amountMotion = info_motion[i].coor[j].amount_motion;
+				k = 0;
+				while(amountMotion-- > 0){
+					if(info_motion[i].coor[j].lin[k] == posLin && info_motion[i].coor[j].col[k] == posCol){
+						if(promotion == empty){
+							 xadrez->board[posLin][posCol].piece = xadrez->board[posActualLin][posActualCol].piece;
+							 xadrez->board[posActualLin][posActualCol].piece = empty;
+						}
+						else{
+							if(islower(xadrez->board[posActualLin][posActualCol].piece)){
+								xadrez->board[posLin][posCol].piece = tolower(promotion);
+							}
+							else{
+								xadrez->board[posLin][posCol].piece = promotion;	
+							}
+							xadrez->board[posActualLin][posActualCol].piece = empty;	
+						}
+						catch_piece = info_motion[i].coor[j].catch_piece[k];
+						piece = i;
+						valid = YES;
+						break;
+					}
+					k++;
+				}
+			}
+			j++;
+		}
+	}
+
+	//Caso o movimento seja válido então é trocado o turno
+	if(valid == YES){
+		//Alterando o turno
+		if(xadrez->turn == 'w'){
+			xadrez->turn = 'b';
+		}
+		else{
+			 xadrez->turn = 'w';
+		}
+		//Verificando a ocorrência de meio turno
+		if(piece != PAWN && catch_piece == 0){
+			xadrez->middle_turn++;
+		}
+		//Zerando os meios turnos
+		if(piece == PAWN || catch_piece == 1){
+			xadrez->middle_turn = 0;
+		}
+		//Verificando se um turno já foi completo
+		(*counter)++;
+		if(*counter == 2){
+			xadrez->num_turn++;
+			*counter = 0;
+		}
+		//Impressão da fen
+		print_fen(xadrez);
+	}
+	else{
+		printf("Movimento invalido. Tente novamente.\n");
+	}
+}
+
+/*
+Verica empate por afogamento ou por a regra dos 50 movimentos
+Parâmetros: XADREZ *
+Retorno: nenhum
+*/
+int check_tie(XADREZ *xadrez){
+
+	int i,j;
+	int amountKnight = 0, amountBishop = 0, amountPiece = 0;
+
+	//Empate por meio dos 50 movimentos
+	if(xadrez->middle_turn == 50){
+		printf("Empate -- Regra dos 50 movimentos\n");
+		return YES;
+	}
+
+	//Empate por falta de material
+	for(i=0;i<RANKS;i++){
+		for(j=0;j<FILES;j++){
+			if(xadrez->board[i][j].piece == 'n' || xadrez->board[i][j].piece == 'N'){
+				amountKnight++;
+			}
+			else if(xadrez->board[i][j].piece == 'b' || xadrez->board[i][j].piece == 'B'){
+				amountBishop++;
+			}
+			else if(xadrez->board[i][j].piece != empty && xadrez->board[i][j].piece != 'K' && xadrez->board[i][j].piece != 'k'){
+				amountPiece++;
+			}
+		}
+	}
+	if(amountPiece == 0){
+		if( (amountBishop == 1 || amountBishop == 0) && amountKnight == 0){
+			printf("Empate -- Falta de material\n");
+			return YES;
+		}
+		else if( (amountKnight == 1 || amountKnight == 0) && amountBishop == 0){
+			printf("Empate -- Falta de material\n");
+			return YES;
+		}
+	}
+
+	return NO;
+}
+
+/*
+Verificando se quantos movimentos o jogador possui
+Parâmetros: INFO_MOTION *
+Retorno: nenhum
+*/
+int verify(INFO_MOTION *info_motion){
+
+	int i,j;
+	int amountPiece, amountMotion;
+	int counter = 0;
+
+	//Verificando se há algum movimento possível
+	for(i=0;i<AMOUNT_PIECE;i++){
+		amountPiece = info_motion[i].amount_piece;
+		j = 0;
+		while(amountPiece-- > 0){
+			amountMotion = info_motion[i].coor[j].amount_motion;
+			if(amountMotion > 0){
+				counter++;
+			}
+			j++;
+		}
+	}
+
+	//NO indica que não há movimentos possíveis enquanto que YES sim
+	if(counter == 0){
+		return NO;
+	}
+	else{
+		return YES;
+	}
+}
+
+/*
+Verificando se ocorreu xeque-mate
+Parâmetros:
+Retorno: int
+*/
+int check_mate(GEN_MOTION *gen_motion, XADREZ *xadrez){
+
+	int i,j;
+	int retGen, retVer;
+	MOTION *motion;
+	MOTION *motion_aux;
+
+	//Alocando a variável que irá armazenar os movimentos
+	motion = create_motion(xadrez);
+	motion_aux = create_motion(xadrez);
+
+	//Gerando todos os movimentos e verificando a ocorrência de xeque-mate ou empate por afogamento
+	if(xadrez->turn == 'w'){
+		generate_motion(gen_motion,xadrez,motion,'w',0);
+		retGen = generate_motion(gen_motion,xadrez,motion_aux,'b',1);
+		retVer = verify(motion->white);
+	}
+	else{
+		generate_motion(gen_motion,xadrez,motion,'b',0);
+		retGen = generate_motion(gen_motion,xadrez,motion_aux,'w',1);	
+		retVer = verify(motion->black);
+	}
+
+	if(retGen == 1 && retVer == 0){
+		printf("Cheque-mate -- Vitoria: ");
+		if(xadrez->turn == 'w'){
+			printf("PRETO\n");
+		}
+		else{
+			printf("BRANCO\n");
+		}
+		destroy_motion(motion);
+		return YES;
+	}
+	else if(retGen == 0 && retVer == 0){
+		printf("Empate -- Afogamento\n");
+		destroy_motion(motion);
+		return YES;
+	}
+
+	//Desalocação
+	destroy_motion(motion);
+	destroy_motion(motion_aux);
+
+	return NO;
+}
+
+/*
+Jogando com o xadrez
+Parâmetros: XADREZ *
+Retorno: nenhum
+*/
+int play_xadrez(GEN_MOTION *gen_motion, XADREZ *xadrez, MOTION *motion, int *counter){
+
+	int tam, ret = NO;
+	char *pos;
+
+
+	//Armazenando a coordenada atual e futura da peça
+	pos = read_name();
+
+	//Verificando se existe promoção na peça
+	tam = strlen(pos);
+
+	//Percorrendo os movimentos para verificar se as coordenas que foram passadas são validas
+	if(xadrez->turn == 'w'){
+		//Caso exista 5 caracteres, então existe promoção
+		if(tam == 5){
+			checks_position(xadrez,motion->white,pos[0]-97,RANKS-(pos[1]-48),pos[2]-97,RANKS-(pos[3]-48),pos[4],counter);
+		}
+		else{
+			checks_position(xadrez,motion->white,pos[0]-97,RANKS-(pos[1]-48),pos[2]-97,RANKS-(pos[3]-48),empty,counter);
+		}
+	}
+	else{
+		//Caso exista 5 caracteres, então existe promoção
+		if(tam == 5){
+			checks_position(xadrez,motion->black,pos[0]-97,RANKS-(pos[1]-48),pos[2]-97,RANKS-(pos[3]-48),pos[4],counter);
+		}
+		else{
+			checks_position(xadrez,motion->black,pos[0]-97,RANKS-(pos[1]-48),pos[2]-97,RANKS-(pos[3]-48),empty,counter);
+		}
+	}
+
+	//Verificando por xeque-mate
+	ret = check_mate(gen_motion,xadrez);
+	if(ret == YES){
+		free(pos);
+		return YES;
+	}
+
+	//Verificando por empate
+	ret = check_tie(xadrez);
+	if(ret == YES) {
+		free(pos);
+		return YES;
+	}
+
+	//Desalocando as coordenas
+	free(pos);
+
+	return ret;
+}

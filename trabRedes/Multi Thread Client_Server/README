@@ -1,0 +1,9 @@
+To start the SMA do this steps on linux terminal:
+
+1 - make 
+This command will compile all files
+
+2 - sh run.sh
+This command will start the SMA
+
+3 - Enjoy :)

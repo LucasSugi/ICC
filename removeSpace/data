@@ -1,0 +1,16 @@
+31)     Dado     o     endereço     IP     200.1.1.130     e     a     máscara     255.255.255.224,     quais     são    
+todos    os    números    de    sub-rede    se    a    mesma    máscara    for    usada    para    todas    as    sub-
+redes    nesta    rede?    
+ 
+34)     Dado     o     endereço     IP     167.88.99.66     e     a     máscara     255.255.255.192,     quais     são    
+todos    os    números    de    sub-rede    se    a    mesma    máscara    for    usada    para    todas    as    sub-
+redes    nesta    rede?
+ 
+35)     Quantos     endereços     IP     poderiam     ser     atribuídos     em     cada     sub-rede     de    
+134.141.0.0,     pressupondo-se     que     fosse     usada     a     máscara     255.255.255.0     ?     Se     a    
+mesma     máscara     for     usada     para     todas     as     sub-redes,     quantas     sub-redes    
+existiriam?    
+ 
+38)     Quantos     endereços     IP     poderiam     ser     atribuídos     em     cada     sub     de     140.1.0.0,    
+pressupondo-se    que    fosse    usada    uma    máscara    de    255.255.255.248?    Se    a    mesma    
+máscara    for    usada    para    todas    as    sub-redes,    quantas    sub-redes    existiriam?
